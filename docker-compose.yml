@@ -1,0 +1,45 @@
+name: form-agent
+
+services:
+  # Python AI 服务：LangGraph 编排 + PydanticAI + LangChain
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      MODEL_NAME: ${MODEL_NAME:-gpt-4o-mini}
+      MAX_RETRY: ${MAX_RETRY:-2}
+      RAG_DOC_DIR: /app/data/specs
+      PORT: "8000"
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  # NestJS 网关：对外统一接口、参数校验、转发
+  gateway:
+    build:
+      context: ./form-gateway-nest
+    environment:
+      AI_AGENT_BASE_URL: http://agent:8000
+      AI_AGENT_TIMEOUT_MS: ${AI_AGENT_TIMEOUT_MS:-30000}
+      PORT: "3000"
+    expose:
+      - "3000"
+    depends_on:
+      agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # React 前端 + nginx：静态托管，/api 同源反代到网关
+  web:
+    build:
+      context: ./form-web-react
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped

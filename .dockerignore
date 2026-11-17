@@ -1,0 +1,9 @@
+node_modules
+dist
+.venv
+__pycache__
+*.pyc
+.env
+form-gateway-nest
+form-web-react
+*.log

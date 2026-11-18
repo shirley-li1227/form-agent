@@ -10,9 +10,13 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
       MODEL_NAME: ${MODEL_NAME:-gpt-4o-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       MAX_RETRY: ${MAX_RETRY:-2}
       RAG_DOC_DIR: /app/data/specs
+      RAG_CACHE_PATH: /app/data/cache/rag_index.npz
       PORT: "8000"
+    volumes:
+      - rag-cache:/app/data/cache
     expose:
       - "8000"
     restart: unless-stopped
@@ -43,3 +47,7 @@ services:
     depends_on:
       - gateway
     restart: unless-stopped
+
+volumes:
+  # RAG 向量索引缓存，避免容器重启后重新 embedding
+  rag-cache:

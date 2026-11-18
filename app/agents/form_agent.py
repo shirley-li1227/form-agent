@@ -15,6 +15,11 @@ from app.models import FormField, FormSchema
 
 logger = logging.getLogger(__name__)
 
+# 部分模型（如 glm-4-flash）会在中文词之间插入空格（半角/全角/不换行/零宽），如「活 动报名表单」
+_CJK_SPACE = re.compile(
+    r"(?<=[\u4e00-\u9fff])[\s\u00a0\u200b\u200c\u200d\u2060\ufeff]+(?=[\u4e00-\u9fff])"
+)
+
 
 class FormAgent:
     def __init__(self, settings: Optional[Settings] = None) -> None:
@@ -39,9 +44,12 @@ class FormAgent:
             self._agent = Agent(
                 model,
                 output_type=FormSchema,
+                retries=3,
                 system_prompt=(
                     "你是低代码表单生成助手。根据用户需求与规范上下文，"
-                    "输出符合 FormSchema 结构的标准表单 JSON；字段标识用蛇形命名，"
+                    "输出符合 FormSchema 结构的标准表单 JSON；"
+                    "每个字段必须给出 label 字段存放中文标签，"
+                    "严禁用 title 代替 label（title 只属于表单级标题）；字段标识 name 用蛇形命名，"
                     "类型只能是 text/tel/email/password/textarea/select/radio/checkbox/"
                     "switch/number/date/time/datetime/upload/url；"
                     "其中 select、radio、checkbox 必须给出 options 字符串数组；"
@@ -62,20 +70,48 @@ class FormAgent:
             prompt = f"用户需求：{requirement}\n规范上下文：{context}\n请生成表单 Schema。"
             try:
                 result = self._agent.run_sync(prompt)
-                return self._merge_missing_fields(result.output, requirement)
+                return self._clean_schema(
+                    self._merge_missing_fields(result.output, requirement)
+                )
             except Exception:
                 # 模型调用失败（网络/额度/兼容性问题）时降级规则生成，不中断链路
                 logger.warning("LLM 生成失败，降级规则兜底", exc_info=True)
-        return self._fallback_generate(requirement)
+        return self._clean_schema(self._fallback_generate(requirement))
 
     def _merge_missing_fields(self, schema: FormSchema, requirement: str) -> FormSchema:
         """模型常漏字段：用规则识别结果补齐需求里明确提到、但模型没给的字段。"""
         existing = {item.name for item in schema.fields}
-        extra = [item for item in self._fallback_generate(requirement).fields if item.name not in existing]
+        existing_labels = {item.label for item in schema.fields}
+        extra = [
+            item
+            for item in self._fallback_generate(requirement).fields
+            if item.name not in existing and item.label not in existing_labels
+        ]
         if not extra:
             return schema
         logger.info("模型漏字段，规则补齐: %s", [item.name for item in extra])
         return FormSchema(title=schema.title, fields=[*schema.fields, *extra])
+
+    @staticmethod
+    def _clean_schema(schema: FormSchema) -> FormSchema:
+        """清理模型在中文之间插入的多余空格。"""
+
+        def clean(text: Optional[str]) -> Optional[str]:
+            return _CJK_SPACE.sub("", text) if text else text
+
+        fields = [
+            field.model_copy(
+                update={
+                    "label": clean(field.label) or field.label,
+                    "placeholder": clean(field.placeholder),
+                    "options": [clean(opt) or opt for opt in field.options]
+                    if field.options
+                    else field.options,
+                }
+            )
+            for field in schema.fields
+        ]
+        return FormSchema(title=clean(schema.title) or schema.title, fields=fields)
 
     # ---------- 本地兜底（无 LLM 时的规则生成） ----------
 

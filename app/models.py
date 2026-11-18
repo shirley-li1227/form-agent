@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FormField(BaseModel):
@@ -18,6 +18,17 @@ class FormField(BaseModel):
     required: bool = Field(default=False, description="是否必填")
     placeholder: Optional[str] = Field(default=None, description="占位提示")
     options: Optional[list[str]] = Field(default=None, description="select 类型的选项")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_label(cls, data: Any) -> Any:
+        """部分模型会把标签写成 title/name_cn，这里统一映射到 label，避免整体校验失败。"""
+        if isinstance(data, dict) and not data.get("label"):
+            for alias in ("title", "label_text", "name_cn", "caption"):
+                value = data.get(alias)
+                if isinstance(value, str) and value.strip():
+                    return {**data, "label": value}
+        return data
 
 
 class FormSchema(BaseModel):

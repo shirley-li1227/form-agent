@@ -45,17 +45,20 @@ form-agent/
 
 ## 四、安装与启动
 
+> 需要 **Python 3.10+**（`pydantic-ai` / `langchain` 新版已不支持 3.9）。
+> 本机若只有系统 Python 3.9，可先用 `uv` 拉一个：`uv python install 3.12`。
+
 ```bash
 # 1. 进入目录
 cd form-agent
 
-# 2. 建议虚拟环境
-python -m venv .venv
+# 2. 建虚拟环境（用 uv 指定版本；本机已有 3.10+ 时也可用 python -m venv .venv）
+uv venv --python 3.12 .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
 
 # 3. 安装依赖
-pip install -r requirements.txt
+uv pip install -r requirements.txt    # 未用 uv 时：pip install -r requirements.txt
 
 # 4. 配置环境变量
 cp .env.example .env   # 填入 OPENAI_API_KEY；不填也能跑（走本地规则兜底）
@@ -65,6 +68,19 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 接口文档：`http://localhost:8000/docs`
+
+### 4.1 接入 OpenAI 兼容网关
+
+`OPENAI_BASE_URL` 决定实际调用的服务，除 OpenAI 外也可以指向国内兼容网关，例如智谱：
+
+| 变量 | 智谱取值 |
+|---|---|
+| `OPENAI_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` |
+| `MODEL_NAME` | `glm-4-flash` |
+| `OPENAI_EMBEDDING_MODEL` | `embedding-3` |
+
+RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需改这三项。
+`glm-4-flash` 有几处输出习惯差异（如把 `label` 写成 `title`、中文词间插空格），代码已做兼容，详见 [docs/prompt-spec.md](./docs/prompt-spec.md)。
 
 ## 五、接口一览
 
@@ -136,7 +152,7 @@ form-gateway-nest/    # 新增：NestJS 网关，统一对外入口、参数校�
 form-web-react/       # 新增：React + Ant Design 前端，需求输入 / 任务状态 / 人工审批 / 表单预览
 ```
 
-调用链：`React(5173) → NestJS 网关(3000) → FastAPI Agent(8000)`
+调用链：`React(5173) → NestJS 网关(3000，本机冲突时用 3111) → FastAPI Agent(8000)`
 
 ### 9.1 NestJS 网关（`form-gateway-nest`）
 
@@ -181,9 +197,20 @@ npm run dev                 # http://localhost:5173
 
 ### 9.4 完整启动顺序
 
+macOS 一键启动（推荐，自动串起三个服务并做健康检查）：
+
+```bash
+./scripts/start-local-mac.sh          # 普通模式，改代码需手动重启
+RELOAD=1 ./scripts/start-local-mac.sh # 开发模式：agent --reload、网关 nest --watch
+```
+
+手动分别启动：
+
 1. `uvicorn app.main:app --reload --port 8000`（本目录）
 2. `cd form-gateway-nest && npm run start:dev`（3000）
 3. `cd form-web-react && npm run dev`（5173，浏览器打开）
+
+> 本机 3000 常被其他项目占用，启动脚本默认把网关起在 **3111**，并已同步改好 `form-web-react/vite.config.ts` 的 `/api` 代理；手动启动若改端口，记得一起改代理。
 
 ### 9.5 本轮补充的验证结果
 
@@ -193,9 +220,9 @@ npm run dev                 # http://localhost:5173
 | `form-gateway-nest` | 启动网关（端口 3010）+ 临时 stub 上游（8010）实测四个路径 | 通过：`generate` 返回 `form_schema`、`run` 查询、`approval` 通过/驳回、缺 `requirement` 与非法 `approved` 类型均返回 400 |
 | `form-gateway-nest` | 上游未启动时请求 `generate` | 返回 502 且提示“无法连接 AI 服务”，不是裸 500 |
 | `form-web-react` | `npm install` + `npm run build`（`tsc --noEmit && vite build`） | 通过，`dist` 产物可 `preview` 打开（HTTP 200） |
-| Python AI 服务 ↔ 网关 | 端到端联调 | **未执行**：本机未安装 `fastapi / pydantic_ai / langgraph / langchain`，避免改动用户 Python 环境；装好 `requirements.txt` 后可跑 9.4 的三步启动 |
+| Python AI 服务 ↔ 网关 ↔ 前端 | 端到端联调（本机三服务同源链路） | 通过：`POST /api/form/generate` 返回 201，需求中的 4 个字段全部生成；智谱 `glm-4-flash` 真实生成，`embedding-3` 向量检索生效（`/api/form/rag/status` 为 `mode=vector`） |
 
-> 两个模块内已生成 `node_modules` 与 `dist`（仅用于上述验证）。不需要可直接删除，重新 `npm install` 即可恢复。
+> `node_modules` 与 `dist` 为运行/构建产物，已在 `.gitignore` 中忽略；重新 `npm install` / `npm run build` 即可恢复。
 
 ## 十、部署
 

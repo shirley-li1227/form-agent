@@ -227,6 +227,9 @@ cloudflared tunnel --url http://localhost:8080
 
 ## 七、本机免 Docker 跑通（开发机没有 Docker 时）
 
+> **macOS**：直接跑 `./scripts/start-local-mac.sh`（加 `RELOAD=1` 开热重载），它会按序拉起 agent / 网关 / 前端并做健康检查，无需按下面步骤手动开三个终端。
+> 注意本机 3000 常被其他项目占用，脚本默认把网关起在 3111，vite 代理已同步改好。
+
 ```powershell
 # 1. Python agent（首次要装依赖，5-10 分钟）
 python -m venv .venv

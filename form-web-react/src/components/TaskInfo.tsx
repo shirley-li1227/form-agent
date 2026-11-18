@@ -19,28 +19,33 @@ export default function TaskInfo({ run, onApprove }: Props) {
   const meta = STATUS_META[run.status] ?? { color: 'blue', text: run.status };
 
   return (
-    <Card title={`任务 ID：${run.run_id}`} style={{ marginTop: 16 }}>
-      <Space wrap>
-        <Tag color={meta.color}>{meta.text}</Tag>
-        <Typography.Text type="secondary">
-          重试次数：{run.retries}
+    <Card style={{ marginTop: 16 }}>
+      <div className="task-head">
+        <Typography.Text strong className="task-id">
+          任务 ID：{run.run_id}
         </Typography.Text>
-        {run.message && (
-          <Typography.Text type="secondary">{run.message}</Typography.Text>
-        )}
-      </Space>
+        <Space wrap size={8}>
+          <Tag color={meta.color}>{meta.text}</Tag>
+          <Typography.Text type="secondary">重试次数：{run.retries}</Typography.Text>
+        </Space>
+      </div>
+      {run.message && (
+        <Typography.Text type="secondary" className="task-message">
+          {run.message}
+        </Typography.Text>
+      )}
 
       {run.form_schema && <FormPreview schema={run.form_schema} />}
 
       {run.status === 'pending_approval' && (
-        <Space style={{ marginTop: 16 }}>
+        <div className="form-actions" style={{ marginTop: 16 }}>
           <Button type="primary" onClick={() => onApprove(true)}>
             通过
           </Button>
           <Button danger onClick={() => onApprove(false)}>
             驳回
           </Button>
-        </Space>
+        </div>
       )}
     </Card>
   );

@@ -225,7 +225,36 @@ cloudflared tunnel --url http://localhost:8080
 
 本地 `npm run build` 前把 `VITE_API_BASE_URL` 设成网关公网地址，再把 `dist` 拖到静态托管即可；网关已开 CORS。这样服务器上还能省掉 web 容器，只跑 agent + gateway。
 
-## 七、最小可用清单
+## 七、本机免 Docker 跑通（开发机没有 Docker 时）
+
+```powershell
+# 1. Python agent（首次要装依赖，5-10 分钟）
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# 2. NestJS 网关（另开一个终端）
+cd form-gateway-nest
+npm install
+$env:AI_AGENT_BASE_URL="http://127.0.0.1:8000"; $env:PORT="3000"; node dist/main.js
+
+# 3. 前端（同源：/api 由 vite 代理到网关）
+cd form-web-react
+npm run build
+npx vite preview --port 4173
+
+# 4. 临时公网地址（只需出站，不需要公网 IP）
+cloudflared tunnel --url http://127.0.0.1:4173 --protocol http2
+```
+
+要点：
+
+- 前端 `VITE_API_BASE_URL` **留空**才是同源；`vite.config.ts` 已给 dev/preview 配好 `/api` 代理；
+- cloudflared 免费隧道**域名每次重启都会变**，要固定地址得用登录后的命名隧道；
+- Windows 上**uvicorn 正在运行时再 `pip install` 会锁住 site-packages**（`WinError 32`），先停服务再装；
+- 端口占用排查：`Get-NetTCPConnection -State Listen | Where-Object LocalPort -in 3000,4173,5173,8000`。
+
+## 八、最小可用清单
 
 - [ ] 一台 2C4G Linux 服务器，放行 80/443/22
 - [ ] 装 docker + compose v2

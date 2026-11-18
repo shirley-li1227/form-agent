@@ -9,7 +9,11 @@ class FormField(BaseModel):
     name: str = Field(description="字段英文标识，蛇形命名，如 phone")
     label: str = Field(description="字段中文标签，如 手机号")
     type: str = Field(
-        description="字段类型：text / tel / email / textarea / select / number / date"
+        description=(
+            "字段类型：text / tel / email / password / textarea / "
+            "select / radio / checkbox / switch / number / "
+            "date / time / datetime / upload / url"
+        )
     )
     required: bool = Field(default=False, description="是否必填")
     placeholder: Optional[str] = Field(default=None, description="占位提示")

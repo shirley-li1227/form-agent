@@ -1,10 +1,8 @@
 import axios from 'axios';
 import type { RunInfo } from './types';
 
-// 开发默认打到本机网关；生产构建留空即同源请求，由 nginx 反代 /api 到网关
-const base =
-  import.meta.env.VITE_API_BASE_URL ??
-  (import.meta.env.DEV ? 'http://localhost:3000' : '');
+// 默认同源：开发由 vite 代理 /api，生产由 nginx 反代 /api；只有前端单独部署时才填网关地址
+const base = import.meta.env.VITE_API_BASE_URL ?? '';
 
 const api = axios.create({ baseURL: base, timeout: 30000 });
 

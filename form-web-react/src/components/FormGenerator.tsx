@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Input, Space, Switch, Typography, message } from 'antd';
+import { Button, Card, Input, Switch, Typography, message } from 'antd';
 import { approval, errorText, generateForm, getRun } from '../api';
 import type { RunInfo } from '../types';
 import TaskInfo from './TaskInfo';
@@ -11,7 +11,7 @@ const SETTLED_STATUS = ['pending_approval', 'auto_passed', 'approved', 'rejected
 
 export default function FormGenerator() {
   const [requirement, setRequirement] = useState(
-    '用户注册表单，包含姓名、手机号、收货地址',
+    '用户注册表单，包含姓名、手机号、邮箱、性别、收货地址、是否同意协议',
   );
   const [needApproval, setNeedApproval] = useState(true);
   const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
@@ -72,18 +72,21 @@ export default function FormGenerator() {
   return (
     <Card title="AI 表单生成器">
       <TextArea
-        rows={4}
+        rows={3}
         value={requirement}
         onChange={(e) => setRequirement(e.target.value)}
-        placeholder="描述你想要的表单，例如：用户注册表单，包含姓名、手机号、收货地址"
+        placeholder="描述你想要的表单，例如：报名表单，包含姓名、手机号、性别、参加日期、上传证件"
       />
-      <Space style={{ marginTop: 12 }} align="center">
+
+      <div className="form-actions" style={{ marginTop: 12 }}>
         <Button type="primary" onClick={handleSubmit} loading={loading}>
           发起生成
         </Button>
-        <Typography.Text type="secondary">需要人工审批</Typography.Text>
-        <Switch checked={needApproval} onChange={setNeedApproval} size="small" />
-      </Space>
+        <div className="switch-row">
+          <Typography.Text type="secondary">需要人工审批</Typography.Text>
+          <Switch checked={needApproval} onChange={setNeedApproval} size="small" />
+        </div>
+      </div>
 
       {runInfo && <TaskInfo run={runInfo} onApprove={handleApprove} />}
     </Card>

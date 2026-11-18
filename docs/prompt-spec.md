@@ -11,7 +11,14 @@
 {
   "title": "活动报名表单",
   "fields": [
-    { "name": "phone", "label": "手机号", "type": "tel", "required": true, "placeholder": "请输入11位手机号", "options": null }
+    {
+      "name": "phone",
+      "label": "手机号",
+      "type": "tel",
+      "required": true,
+      "placeholder": "请输入11位手机号",
+      "options": null
+    }
   ]
 }
 ```
@@ -20,14 +27,14 @@
 
 ### 2. 字段属性
 
-| 属性 | 规则 |
-|---|---|
-| `name` | 必填。英文蛇形命名，同一表单内唯一，如 `phone`、`event_date` |
-| `label` | 必填。中文标签，如「手机号」。**禁止用 `title` 充当 `label`** |
-| `type` | 必填。只能取下方白名单中的值 |
-| `required` | 布尔，默认 `false` |
-| `placeholder` | 可选，输入提示文案 |
-| `options` | `select` / `radio` / `checkbox` 必填，字符串数组 |
+| 属性          | 规则                                                          |
+| ------------- | ------------------------------------------------------------- |
+| `name`        | 必填。英文蛇形命名，同一表单内唯一，如 `phone`、`event_date`  |
+| `label`       | 必填。中文标签，如「手机号」。**禁止用 `title` 充当 `label`** |
+| `type`        | 必填。只能取下方白名单中的值                                  |
+| `required`    | 布尔，默认 `false`                                            |
+| `placeholder` | 可选，输入提示文案                                            |
+| `options`     | `select` / `radio` / `checkbox` 必填，字符串数组              |
 
 ### 3. type 白名单（15 种，不得自造）
 
@@ -35,21 +42,21 @@
 
 ### 4. 类型选择映射
 
-| 需求描述 | 应选 type |
-|---|---|
-| 姓名、普通文本 | `text` |
-| 手机、电话、联系方式 | `tel` |
-| 邮箱 | `email` |
-| 密码 | `password` |
-| 地址、备注、多行说明 | `textarea` |
-| 场次、城市、部门等枚举 | `select`（必须补 `options`） |
-| 性别等单选 | `radio`（必须补 `options`） |
-| 爱好、兴趣等多选 | `checkbox`（必须补 `options`） |
-| 「是否 XX」二值项 | `switch`（不要用 select 模拟） |
-| 年龄、数量、金额 | `number` |
-| 日期 / 时间点 / 日期时间 | `date` / `time` / `datetime` |
-| 附件、照片、证件 | `upload` |
-| 网址、主页 | `url` |
+| 需求描述                 | 应选 type                      |
+| ------------------------ | ------------------------------ |
+| 姓名、普通文本           | `text`                         |
+| 手机、电话、联系方式     | `tel`                          |
+| 邮箱                     | `email`                        |
+| 密码                     | `password`                     |
+| 地址、备注、多行说明     | `textarea`                     |
+| 场次、城市、部门等枚举   | `select`（必须补 `options`）   |
+| 性别等单选               | `radio`（必须补 `options`）    |
+| 爱好、兴趣等多选         | `checkbox`（必须补 `options`） |
+| 「是否 XX」二值项        | `switch`（不要用 select 模拟） |
+| 年龄、数量、金额         | `number`                       |
+| 日期 / 时间点 / 日期时间 | `date` / `time` / `datetime`   |
+| 附件、照片、证件         | `upload`                       |
+| 网址、主页               | `url`                          |
 
 ## 二、提示词必须保留的约束
 
@@ -67,13 +74,13 @@
 
 当前默认模型是智谱 `glm-4-flash`（OpenAI 兼容接口）。它有几处与 OpenAI 模型不同的输出习惯，代码里已做兜底，但**兜底存在不等于可以放松提示词**。
 
-| 现象 | 代码兜底 | 位置 |
-|---|---|---|
-| 字段标签输出成 `title` 而非 `label` | `FormField` 的 `model_validator` 将 `title`/`name_cn` 映射为 `label` | `app/models.py` |
-| 结构化输出偶发不合规 | `Agent(retries=3)` 提高输出重试次数 | `form_agent.py` |
-| 中文词之间插入空格（「活 动」「上 午」，含全角/零宽） | `_clean_schema` 清理 `title`/`label`/`placeholder`/`options` | `form_agent.py` |
-| 漏掉需求中的部分字段 | `_merge_missing_fields` 用规则补齐，按 `name` 和 `label` 双重去重 | `form_agent.py` |
-| 调用失败（401/额度/网络） | 降级本地规则生成，不中断链路，仅记 warning | `form_agent.py` |
+| 现象                                                  | 代码兜底                                                             | 位置            |
+| ----------------------------------------------------- | -------------------------------------------------------------------- | --------------- |
+| 字段标签输出成 `title` 而非 `label`                   | `FormField` 的 `model_validator` 将 `title`/`name_cn` 映射为 `label` | `app/models.py` |
+| 结构化输出偶发不合规                                  | `Agent(retries=3)` 提高输出重试次数                                  | `form_agent.py` |
+| 中文词之间插入空格（「活 动」「上 午」，含全角/零宽） | `_clean_schema` 清理 `title`/`label`/`placeholder`/`options`         | `form_agent.py` |
+| 漏掉需求中的部分字段                                  | `_merge_missing_fields` 用规则补齐，按 `name` 和 `label` 双重去重    | `form_agent.py` |
+| 调用失败（401/额度/网络）                             | 降级本地规则生成，不中断链路，仅记 warning                           | `form_agent.py` |
 
 ## 四、修改提示词后的验证清单
 
@@ -93,15 +100,15 @@
 
 ## 五、相关文件索引
 
-| 文件 | 职责 |
-|---|---|
+| 文件                       | 职责                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
 | `app/agents/form_agent.py` | `system_prompt`、`_clean_schema`、`_merge_missing_fields`、`_fallback_generate` |
-| `app/models.py` | `FormSchema` / `FormField` 输出契约与兼容映射 |
-| `app/graph/workflow.py` | 检索 → 生成 → 校验循环 → 审批的状态机 |
-| `data/specs/form-spec.md` | RAG 语料，检索后会作为「规范上下文」拼进 prompt |
+| `app/models.py`            | `FormSchema` / `FormField` 输出契约与兼容映射                                   |
+| `app/graph/workflow.py`    | 检索 → 生成 → 校验循环 → 审批的状态机                                           |
+| `data/specs/form-spec.md`  | RAG 语料，检索后会作为「规范上下文」拼进 prompt                                 |
 
 ## 六、变更记录
 
-| 日期 | 变更 |
-|---|---|
+| 日期       | 变更                                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
 | 2026-11-18 | 切换到智谱 `glm-4-flash`；新增 `label`/`title` 兼容映射、中文空格清理、输出重试 3 次、补齐字段按 label 去重 |

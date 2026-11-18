@@ -46,6 +46,8 @@ class FormAgent:
                     "switch/number/date/time/datetime/upload/url；"
                     "其中 select、radio、checkbox 必须给出 options 字符串数组；"
                     "switch 表示布尔开关（如同意协议）；upload 表示附件上传。"
+                    "必须逐个覆盖用户需求中列出的每一个字段，不得遗漏或合并；"
+                    "“是否 xx”这类二值项用 switch；“参加场次/选择 xx”这类选项项用 select 并补全 options。"
                 ),
             )
         except Exception:
@@ -60,11 +62,20 @@ class FormAgent:
             prompt = f"用户需求：{requirement}\n规范上下文：{context}\n请生成表单 Schema。"
             try:
                 result = self._agent.run_sync(prompt)
-                return result.output
+                return self._merge_missing_fields(result.output, requirement)
             except Exception:
                 # 模型调用失败（网络/额度/兼容性问题）时降级规则生成，不中断链路
                 logger.warning("LLM 生成失败，降级规则兜底", exc_info=True)
         return self._fallback_generate(requirement)
+
+    def _merge_missing_fields(self, schema: FormSchema, requirement: str) -> FormSchema:
+        """模型常漏字段：用规则识别结果补齐需求里明确提到、但模型没给的字段。"""
+        existing = {item.name for item in schema.fields}
+        extra = [item for item in self._fallback_generate(requirement).fields if item.name not in existing]
+        if not extra:
+            return schema
+        logger.info("模型漏字段，规则补齐: %s", [item.name for item in extra])
+        return FormSchema(title=schema.title, fields=[*schema.fields, *extra])
 
     # ---------- 本地兜底（无 LLM 时的规则生成） ----------
 
@@ -85,6 +96,15 @@ class FormAgent:
 
         add(r"姓名|名字", name="name", label="姓名", type="text", required=True, placeholder="请输入姓名")
         add(r"手机|电话|联系方式", name="phone", label="手机号", type="tel", required=True, placeholder="请输入11位手机号")
+        add(
+            r"场次|时段|班次|上午|下午",
+            name="session",
+            label="参加场次",
+            type="select",
+            required=False,
+            options=["上午", "下午"],
+        )
+        add(r"是否携伴|是否带人|是否同行|携伴|同行人数", name="with_partner", label="是否携伴", type="switch", required=False)
         add(r"邮箱|邮件", name="email", label="邮箱", type="email", required=False, placeholder="请输入邮箱")
         add(r"密码", name="password", label="密码", type="password", required=True, placeholder="请输入密码")
         add(r"性别", name="gender", label="性别", type="radio", required=True, options=["男", "女"])

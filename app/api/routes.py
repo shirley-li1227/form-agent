@@ -1,9 +1,12 @@
 """FastAPI 路由：封装表单生成 Agent 的对外接口。"""
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
 from app.graph.workflow import FormWorkflow
 from app.models import ApprovalRequest, GenerateRequest, GenerateResponse
+from app.config import get_settings
 
 router = APIRouter(prefix="/api/form", tags=["form-agent"])
 
@@ -41,3 +44,19 @@ def approval(run_id: str, req: ApprovalRequest) -> GenerateResponse:
     if result is None:
         raise HTTPException(status_code=404, detail="任务不存在")
     return result
+
+
+@router.get("/rag/status")
+def rag_status() -> dict:
+    """查看 RAG 检索模式与索引缓存状态，用于确认 key / embedding 是否生效。"""
+    retriever = _get_workflow().retriever
+    settings = get_settings()
+    return {
+        "mode": retriever.mode,
+        "embedding_model": settings.embedding_model,
+        "chunks": len(retriever.chunks),
+        "index_size": retriever.index_size,
+        "cache_path": retriever.cache_path,
+        "cache_exists": Path(retriever.cache_path).exists(),
+        "llm_configured": bool(settings.openai_api_key),
+    }

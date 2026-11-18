@@ -6,11 +6,14 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
 from app.config import Settings, get_settings
 from app.models import FormField, FormSchema
+
+logger = logging.getLogger(__name__)
 
 
 class FormAgent:
@@ -47,6 +50,7 @@ class FormAgent:
             )
         except Exception:
             # 依赖未安装或初始化失败时，静默降级到本地兜底逻辑
+            logger.warning("PydanticAI Agent 初始化失败，降级规则生成", exc_info=True)
             self._agent = None
 
     # ---------- 对外主方法 ----------
@@ -59,7 +63,7 @@ class FormAgent:
                 return result.output
             except Exception:
                 # 模型调用失败（网络/额度/兼容性问题）时降级规则生成，不中断链路
-                pass
+                logger.warning("LLM 生成失败，降级规则兜底", exc_info=True)
         return self._fallback_generate(requirement)
 
     # ---------- 本地兜底（无 LLM 时的规则生成） ----------

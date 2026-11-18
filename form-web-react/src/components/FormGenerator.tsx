@@ -1,17 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button, Card, Input, Switch, Typography, message } from 'antd';
-import { approval, errorText, generateForm, getRun } from '../api';
-import type { RunInfo } from '../types';
-import TaskInfo from './TaskInfo';
+import { useEffect, useRef, useState } from "react";
+import { Button, Card, Input, Switch, Typography, message } from "antd";
+import { approval, errorText, generateForm, getRun } from "../api";
+import type { RunInfo } from "../types";
+import TaskInfo from "./TaskInfo";
 
 const { TextArea } = Input;
 
 /** 到达这些状态后不再轮询，等人工动作。 */
-const SETTLED_STATUS = ['pending_approval', 'auto_passed', 'approved', 'rejected'];
+const SETTLED_STATUS = [
+  "pending_approval",
+  "auto_passed",
+  "approved",
+  "rejected",
+];
 
 export default function FormGenerator() {
   const [requirement, setRequirement] = useState(
-    '用户注册表单，包含姓名、手机号、邮箱、性别、收货地址、是否同意协议',
+    "活动报名表单，包含姓名（文本）、手机号、邮箱、登录密码、性别（单选：男/女）、" +
+      "兴趣爱好（多选：阅读/运动/音乐/旅行）、出生日期（日期）、签到时间（时间，精确到时分）、" +
+      "预约时间（日期时间）、年龄（数字）、所在城市（下拉：上海/北京/广州/深圳）、" +
+      "详细地址（多行文本）、个人主页（网址）、证件照（附件上传）、是否同意参会协议（开关）",
   );
   const [needApproval, setNeedApproval] = useState(true);
   const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
@@ -42,7 +50,7 @@ export default function FormGenerator() {
 
   const handleSubmit = async () => {
     if (!requirement.trim()) {
-      message.warning('请先描述你想要的表单');
+      message.warning("请先描述你想要的表单");
       return;
     }
     setLoading(true);
@@ -51,7 +59,7 @@ export default function FormGenerator() {
       setRunInfo(res.data);
       startPolling(res.data.run_id);
     } catch (err) {
-      message.error(errorText(err, '生成失败'));
+      message.error(errorText(err, "生成失败"));
     } finally {
       setLoading(false);
     }
@@ -63,9 +71,9 @@ export default function FormGenerator() {
       const res = await approval(runInfo.run_id, approved);
       setRunInfo(res.data);
       stopPolling();
-      message.success(approved ? '已通过' : '已驳回');
+      message.success(approved ? "已通过" : "已驳回");
     } catch (err) {
-      message.error(errorText(err, '审批失败'));
+      message.error(errorText(err, "审批失败"));
     }
   };
 
@@ -84,7 +92,11 @@ export default function FormGenerator() {
         </Button>
         <div className="switch-row">
           <Typography.Text type="secondary">需要人工审批</Typography.Text>
-          <Switch checked={needApproval} onChange={setNeedApproval} size="small" />
+          <Switch
+            checked={needApproval}
+            onChange={setNeedApproval}
+            size="small"
+          />
         </div>
       </div>
 

@@ -79,14 +79,22 @@ class FormAgent:
         return self._clean_schema(self._fallback_generate(requirement))
 
     def _merge_missing_fields(self, schema: FormSchema, requirement: str) -> FormSchema:
-        """模型常漏字段：用规则识别结果补齐需求里明确提到、但模型没给的字段。"""
+        """模型常漏字段：用规则识别结果补齐需求里明确提到、但模型没给的字段。
+
+        模型给的 label 常与规则文案不同（如「所在城市」vs「城市」），
+        因此再用生成该字段的规则去匹配已有 label，避免同一需求被补成两个字段。
+        """
         existing = {item.name for item in schema.fields}
         existing_labels = {item.label for item in schema.fields}
-        extra = [
-            item
-            for item in self._fallback_generate(requirement).fields
-            if item.name not in existing and item.label not in existing_labels
-        ]
+        patterns: dict[str, str] = {}
+        extra: list[FormField] = []
+        for item in self._fallback_generate(requirement, patterns).fields:
+            if item.name in existing or item.label in existing_labels:
+                continue
+            pattern = patterns.get(item.name)
+            if pattern and any(re.search(pattern, label) for label in existing_labels):
+                continue
+            extra.append(item)
         if not extra:
             return schema
         logger.info("模型漏字段，规则补齐: %s", [item.name for item in extra])
@@ -116,7 +124,10 @@ class FormAgent:
     # ---------- 本地兜底（无 LLM 时的规则生成） ----------
 
     @staticmethod
-    def _fallback_generate(requirement: str) -> FormSchema:
+    def _fallback_generate(
+        requirement: str, patterns: Optional[dict[str, str]] = None
+    ) -> FormSchema:
+        """本地规则生成；传入 patterns 时回填「字段名 → 命中规则」，供合并时去重。"""
         fields: list[FormField] = []
         positions: dict[str, int] = {}
 
@@ -128,6 +139,8 @@ class FormAgent:
             if any(item.name == name for item in fields):
                 return
             positions[name] = match.start()
+            if patterns is not None:
+                patterns[name] = pattern
             fields.append(FormField(**kwargs))
 
         add(r"姓名|名字", name="name", label="姓名", type="text", required=True, placeholder="请输入姓名")
@@ -169,6 +182,14 @@ class FormAgent:
         add(r"生日|出生", name="birthday", label="出生日期", type="date", required=False)
         add(r"参加日期|活动日期|报名日期", name="event_date", label="参加日期", type="date", required=False)
         add(r"预约|日期时间|具体时间|时间点|日程", name="appoint_at", label="预约时间", type="datetime", required=False)
+        # 纯时间点单独识别：否则下面「无日期类才补 time」的兜底会因已有 date/datetime 而跳过
+        add(
+            r"签到时间|入场时间|打卡时间|到店时间",
+            name="checkin_time",
+            label="签到时间",
+            type="time",
+            required=False,
+        )
         if not any(item.type == "date" for item in fields):
             add(r"日期|哪天", name="date", label="日期", type="date", required=False)
         if not any(item.type in ("date", "time", "datetime") for item in fields):

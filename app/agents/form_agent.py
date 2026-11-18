@@ -25,16 +25,17 @@ class FormAgent:
             return
         try:
             from pydantic_ai import Agent
-            from pydantic_ai.models.openai import OpenAIModel
+            from pydantic_ai.models.openai import OpenAIChatModel
+            from pydantic_ai.providers.openai import OpenAIProvider
 
-            model = OpenAIModel(
-                self.settings.model_name,
-                api_key=self.settings.openai_api_key,
+            provider = OpenAIProvider(
                 base_url=self.settings.openai_base_url,
+                api_key=self.settings.openai_api_key,
             )
+            model = OpenAIChatModel(self.settings.model_name, provider=provider)
             self._agent = Agent(
                 model,
-                result_type=FormSchema,
+                output_type=FormSchema,
                 system_prompt=(
                     "你是低代码表单生成助手。根据用户需求与规范上下文，"
                     "输出符合 FormSchema 结构的标准表单 JSON；字段标识用蛇形命名，"
@@ -53,8 +54,12 @@ class FormAgent:
     def generate(self, requirement: str, context: str = "") -> FormSchema:
         if self._agent is not None:
             prompt = f"用户需求：{requirement}\n规范上下文：{context}\n请生成表单 Schema。"
-            result = self._agent.run_sync(prompt)
-            return result.data
+            try:
+                result = self._agent.run_sync(prompt)
+                return result.output
+            except Exception:
+                # 模型调用失败（网络/额度/兼容性问题）时降级规则生成，不中断链路
+                pass
         return self._fallback_generate(requirement)
 
     # ---------- 本地兜底（无 LLM 时的规则生成） ----------

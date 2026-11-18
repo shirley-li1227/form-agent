@@ -54,6 +54,8 @@ def rag_status() -> dict:
     return {
         "mode": retriever.mode,
         "embedding_model": settings.embedding_model,
+        "embedding_configured": bool(settings.embedding_api_key),
+        "embedding_base_url": settings.embedding_base_url,
         "chunks": len(retriever.chunks),
         "index_size": retriever.index_size,
         "cache_path": retriever.cache_path,

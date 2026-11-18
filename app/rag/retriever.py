@@ -39,14 +39,14 @@ class Retriever:
     # ---------- 初始化 ----------
 
     def _init_embeddings(self) -> None:
-        if not self.settings.openai_api_key:
+        if not self.settings.embedding_api_key:
             return
         try:
             from langchain_openai import OpenAIEmbeddings
 
             self._embeddings = OpenAIEmbeddings(
-                api_key=self.settings.openai_api_key,
-                base_url=self.settings.openai_base_url,
+                api_key=self.settings.embedding_api_key,
+                base_url=self.settings.embedding_base_url,
                 model=self.settings.embedding_model,
             )
         except Exception:
@@ -86,7 +86,7 @@ class Retriever:
             {
                 "chunks": self.chunks,
                 "model": self.settings.embedding_model,
-                "base_url": self.settings.openai_base_url,
+                "base_url": self.settings.embedding_base_url,
             },
             ensure_ascii=False,
             sort_keys=True,

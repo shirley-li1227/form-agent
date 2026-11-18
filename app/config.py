@@ -17,6 +17,13 @@ class Settings:
         self.embedding_model: str = os.getenv(
             "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
         )
+        # embedding 可与对话模型分开配置（例如对话用 DeepSeek，embedding 用其他兼容服务）
+        self.embedding_api_key: str = os.getenv(
+            "OPENAI_EMBEDDING_API_KEY", self.openai_api_key
+        )
+        self.embedding_base_url: str = os.getenv(
+            "OPENAI_EMBEDDING_BASE_URL", self.openai_base_url
+        )
         self.rag_cache_path: str = os.getenv(
             "RAG_CACHE_PATH", "./data/cache/rag_index.npz"
         )

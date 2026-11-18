@@ -5,12 +5,12 @@
 
 ## 一、框架分工
 
-| 框架 | 职责 | 代码位置 |
-|---|---|---|
-| **PydanticAI** | 单节点 Agent，输出经 Pydantic 强校验的 `FormSchema`，类型不合法会失败重试 | `app/agents/form_agent.py` |
-| **LangChain** | 规范文档加载、检索上下文（Embeddings 向量 / 关键词回退） | `app/rag/retriever.py` |
-| **LangGraph** | 状态机编排：检索→生成→校验→条件分支循环→审批节点 | `app/graph/workflow.py` |
-| **FastAPI** | 对外 HTTP 接口封装、请求响应模型 | `app/api/routes.py`、`app/main.py` |
+| 框架           | 职责                                                                      | 代码位置                           |
+| -------------- | ------------------------------------------------------------------------- | ---------------------------------- |
+| **PydanticAI** | 单节点 Agent，输出经 Pydantic 强校验的 `FormSchema`，类型不合法会失败重试 | `app/agents/form_agent.py`         |
+| **LangChain**  | 规范文档加载、检索上下文（Embeddings 向量 / 关键词回退）                  | `app/rag/retriever.py`             |
+| **LangGraph**  | 状态机编排：检索→生成→校验→条件分支循环→审批节点                          | `app/graph/workflow.py`            |
+| **FastAPI**    | 对外 HTTP 接口封装、请求响应模型                                          | `app/api/routes.py`、`app/main.py` |
 
 ## 二、流程
 
@@ -73,11 +73,11 @@ uvicorn app.main:app --reload --port 8000
 
 `OPENAI_BASE_URL` 决定实际调用的服务，除 OpenAI 外也可以指向国内兼容网关，例如智谱：
 
-| 变量 | 智谱取值 |
-|---|---|
-| `OPENAI_BASE_URL` | `https://open.bigmodel.cn/api/paas/v4` |
-| `MODEL_NAME` | `glm-4-flash` |
-| `OPENAI_EMBEDDING_MODEL` | `embedding-3` |
+| 变量                     | 智谱取值                               |
+| ------------------------ | -------------------------------------- |
+| `OPENAI_BASE_URL`        | `https://open.bigmodel.cn/api/paas/v4` |
+| `MODEL_NAME`             | `glm-4-flash`                          |
+| `OPENAI_EMBEDDING_MODEL` | `embedding-3`                          |
 
 RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需改这三项。
 `glm-4-flash` 有几处输出习惯差异（如把 `label` 写成 `title`、中文词间插空格），代码已做兼容，详见 [docs/prompt-spec.md](./docs/prompt-spec.md)。
@@ -85,6 +85,7 @@ RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需�
 ## 五、接口一览
 
 ### 1. 生成表单
+
 `POST /api/form/generate`
 
 ```json
@@ -103,8 +104,8 @@ RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需�
   "form_schema": {
     "title": "用户注册表单",
     "fields": [
-      {"name": "name", "label": "姓名", "type": "text", "required": true},
-      {"name": "phone", "label": "手机号", "type": "tel", "required": true}
+      { "name": "name", "label": "姓名", "type": "text", "required": true },
+      { "name": "phone", "label": "手机号", "type": "tel", "required": true }
     ]
   },
   "message": "等待人工审批",
@@ -113,9 +114,11 @@ RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需�
 ```
 
 ### 2. 查询任务
+
 `GET /api/form/run/{run_id}`
 
 ### 3. 人工审批
+
 `POST /api/form/approval/{run_id}`
 
 ```json
@@ -123,6 +126,7 @@ RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需�
 ```
 
 ### 4. 健康检查
+
 `GET /health`
 
 ## 六、校验规则（可在 `workflow._validate` 扩展）
@@ -156,10 +160,10 @@ form-web-react/       # 新增：React + Ant Design 前端，需求输入 / 任�
 
 ### 9.1 NestJS 网关（`form-gateway-nest`）
 
-| 方法 | 路径 | 转发到 |
-|---|---|---|
-| POST | `/api/form/generate` | `POST /api/form/generate` |
-| GET | `/api/form/run/:runId` | `GET /api/form/run/{run_id}` |
+| 方法 | 路径                        | 转发到                             |
+| ---- | --------------------------- | ---------------------------------- |
+| POST | `/api/form/generate`        | `POST /api/form/generate`          |
+| GET  | `/api/form/run/:runId`      | `GET /api/form/run/{run_id}`       |
 | POST | `/api/form/approval/:runId` | `POST /api/form/approval/{run_id}` |
 
 ```bash
@@ -188,12 +192,12 @@ npm run dev                 # http://localhost:5173
 
 ### 9.3 字段契约（已与 Python 服务对齐）
 
-| 项 | 取值 |
-|---|---|
-| 生成入参 | `requirement`、`need_approval` |
-| 返回 Schema | `form_schema`（含 `title`、`fields[]`） |
-| 审批入参 | `approved`、`comment` |
-| 状态 | `pending` / `pending_approval` / `auto_passed` / `approved` / `rejected` |
+| 项          | 取值                                                                     |
+| ----------- | ------------------------------------------------------------------------ |
+| 生成入参    | `requirement`、`need_approval`                                           |
+| 返回 Schema | `form_schema`（含 `title`、`fields[]`）                                  |
+| 审批入参    | `approved`、`comment`                                                    |
+| 状态        | `pending` / `pending_approval` / `auto_passed` / `approved` / `rejected` |
 
 ### 9.4 完整启动顺序
 
@@ -214,13 +218,13 @@ RELOAD=1 ./scripts/start-local-mac.sh # 开发模式：agent --reload、网关 n
 
 ### 9.5 本轮补充的验证结果
 
-| 模块 | 验证方式 | 结果 |
-|---|---|---|
-| `form-gateway-nest` | `npm install` + `npm run build`（`nest build` → tsc） | 通过，产出 `dist/main.js` |
-| `form-gateway-nest` | 启动网关（端口 3010）+ 临时 stub 上游（8010）实测四个路径 | 通过：`generate` 返回 `form_schema`、`run` 查询、`approval` 通过/驳回、缺 `requirement` 与非法 `approved` 类型均返回 400 |
-| `form-gateway-nest` | 上游未启动时请求 `generate` | 返回 502 且提示“无法连接 AI 服务”，不是裸 500 |
-| `form-web-react` | `npm install` + `npm run build`（`tsc --noEmit && vite build`） | 通过，`dist` 产物可 `preview` 打开（HTTP 200） |
-| Python AI 服务 ↔ 网关 ↔ 前端 | 端到端联调（本机三服务同源链路） | 通过：`POST /api/form/generate` 返回 201，需求中的 4 个字段全部生成；智谱 `glm-4-flash` 真实生成，`embedding-3` 向量检索生效（`/api/form/rag/status` 为 `mode=vector`） |
+| 模块                         | 验证方式                                                        | 结果                                                                                                                                                                    |
+| ---------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `form-gateway-nest`          | `npm install` + `npm run build`（`nest build` → tsc）           | 通过，产出 `dist/main.js`                                                                                                                                               |
+| `form-gateway-nest`          | 启动网关（端口 3010）+ 临时 stub 上游（8010）实测四个路径       | 通过：`generate` 返回 `form_schema`、`run` 查询、`approval` 通过/驳回、缺 `requirement` 与非法 `approved` 类型均返回 400                                                |
+| `form-gateway-nest`          | 上游未启动时请求 `generate`                                     | 返回 502 且提示“无法连接 AI 服务”，不是裸 500                                                                                                                           |
+| `form-web-react`             | `npm install` + `npm run build`（`tsc --noEmit && vite build`） | 通过，`dist` 产物可 `preview` 打开（HTTP 200）                                                                                                                          |
+| Python AI 服务 ↔ 网关 ↔ 前端 | 端到端联调（本机三服务同源链路）                                | 通过：`POST /api/form/generate` 返回 201，需求中的 4 个字段全部生成；智谱 `glm-4-flash` 真实生成，`embedding-3` 向量检索生效（`/api/form/rag/status` 为 `mode=vector`） |
 
 > `node_modules` 与 `dist` 为运行/构建产物，已在 `.gitignore` 中忽略；重新 `npm install` / `npm run build` 即可恢复。
 
@@ -228,14 +232,13 @@ RELOAD=1 ./scripts/start-local-mac.sh # 开发模式：agent --reload、网关 n
 
 完整方案对比与落地步骤见 [DEPLOY.md](./DEPLOY.md)，仓库里已备好部署产物：
 
-| 文件 | 用途 |
-|---|---|
-| `Dockerfile` | Python agent 镜像（根目录即构建上下文） |
-| `form-gateway-nest/Dockerfile` | NestJS 网关镜像（多阶段构建） |
-| `form-web-react/Dockerfile` + `nginx.conf` | 前端构建 + nginx 托管并反代 `/api` |
-| `docker-compose.yml` | 三个服务一键起，仅 web 暴露 80 |
+| 文件                                       | 用途                                    |
+| ------------------------------------------ | --------------------------------------- |
+| `Dockerfile`                               | Python agent 镜像（根目录即构建上下文） |
+| `form-gateway-nest/Dockerfile`             | NestJS 网关镜像（多阶段构建）           |
+| `form-web-react/Dockerfile` + `nginx.conf` | 前端构建 + nginx 托管并反代 `/api`      |
+| `docker-compose.yml`                       | 三个服务一键起，仅 web 暴露 80          |
 
 要点：三个服务都是常驻进程，云函数/纯静态托管无法承载；agent 的 `_RUN_STORE` 在进程内存里，
 所以 **uvicorn 单 worker、副本数固定 1**，要扩容得先换 Redis/DB 存运行态。
 推荐单台 2C4G Linux 服务器 + `docker compose up -d --build`，单域名同源无跨域。
-

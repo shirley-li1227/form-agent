@@ -109,9 +109,41 @@ RAG 的 embedding 默认复用同一组 key 与 `base_url`，换网关时只需�
     ]
   },
   "message": "等待人工审批",
-  "retries": 1
+  "retries": 0,
+  "steps": [
+    {
+      "node": "retrieve",
+      "at": "18:05:24",
+      "summary": "vector 检索命中 3 条规范，最相关：可选字段类型（前端已全部支持）",
+      "ok": null,
+      "round": null
+    },
+    {
+      "node": "generate",
+      "at": "18:05:43",
+      "summary": "第 1 轮生成（LLM）：15 个字段",
+      "ok": null,
+      "round": 1
+    },
+    {
+      "node": "check",
+      "at": "18:05:43",
+      "summary": "校验通过",
+      "ok": true,
+      "round": 1
+    },
+    {
+      "node": "approval",
+      "at": "18:05:43",
+      "summary": "等待人工审批",
+      "ok": null,
+      "round": null
+    }
+  ]
 }
 ```
+
+`retries` 是校验失败后重新生成的次数（一次通过为 0）；`steps` 按实际执行顺序记录每个节点的结论，校验失败回到 `generate` 时会多出第 2 轮的 `generate` / `check`。
 
 ### 2. 查询任务
 
@@ -186,8 +218,8 @@ cp .env.example .env        # VITE_API_BASE_URL 指向网关
 npm run dev                 # http://localhost:5173
 ```
 
-- `FormGenerator`：需求输入 → 发起生成 → 每 1.5s 轮询任务状态；
-- `TaskInfo`：状态标签、重试次数、审批按钮（通过 / 驳回）；
+- `FormGenerator`：需求输入 → 发起生成（接口同步返回终态）→ 每 1.5s 轮询仅作兜底刷新；
+- `TaskInfo`：状态标签、生成轮次与重试次数、LangGraph 节点执行时间线（检索 / 生成 / 校验 / 审批，含每步结论）、审批按钮（通过 / 驳回）；
 - `FormPreview`：按 `type` 渲染控件——`text / tel / email` 用 Input，`textarea`、`number`、`date`、`select`（读取 `options`）。
 
 ### 9.3 字段契约（已与 Python 服务对齐）

@@ -12,10 +12,19 @@ export interface FormSchema {
   fields: FormField[];
 }
 
+export interface RunStep {
+  node: 'retrieve' | 'generate' | 'check' | 'approval';
+  at: string;
+  summary: string;
+  ok?: boolean | null;
+  round?: number | null;
+}
+
 export interface RunInfo {
   run_id: string;
   status: string;
   form_schema?: FormSchema;
   message: string;
   retries: number;
+  steps: RunStep[];
 }

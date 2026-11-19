@@ -65,18 +65,20 @@ class FormAgent:
 
     # ---------- 对外主方法 ----------
 
-    def generate(self, requirement: str, context: str = "") -> FormSchema:
+    def generate(self, requirement: str, context: str = "") -> tuple[FormSchema, str]:
+        """生成 Schema，同时返回来源标记：llm（模型）/ rule（规则兜底）。"""
         if self._agent is not None:
             prompt = f"用户需求：{requirement}\n规范上下文：{context}\n请生成表单 Schema。"
             try:
                 result = self._agent.run_sync(prompt)
-                return self._clean_schema(
+                schema = self._clean_schema(
                     self._merge_missing_fields(result.output, requirement)
                 )
+                return schema, "llm"
             except Exception:
                 # 模型调用失败（网络/额度/兼容性问题）时降级规则生成，不中断链路
                 logger.warning("LLM 生成失败，降级规则兜底", exc_info=True)
-        return self._clean_schema(self._fallback_generate(requirement))
+        return self._clean_schema(self._fallback_generate(requirement)), "rule"
 
     def _merge_missing_fields(self, schema: FormSchema, requirement: str) -> FormSchema:
         """模型常漏字段：用规则识别结果补齐需求里明确提到、但模型没给的字段。

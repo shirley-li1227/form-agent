@@ -47,6 +47,18 @@ class GenerateRequest(BaseModel):
     need_approval: bool = Field(default=True, description="是否需要人工审批环节")
 
 
+class RunStep(BaseModel):
+    """单个节点的执行轨迹，用于还原 LangGraph 实际走过的链路。"""
+
+    node: str = Field(description="节点名：retrieve / generate / check / approval")
+    at: str = Field(description="节点完成时间，精确到秒")
+    summary: str = Field(description="该节点的可读结论")
+    ok: Optional[bool] = Field(
+        default=None, description="该节点是否通过；无判定含义的节点为 null"
+    )
+    round: Optional[int] = Field(default=None, description="第几轮生成，从 1 开始")
+
+
 class GenerateResponse(BaseModel):
     """生成接口返回。"""
 
@@ -55,6 +67,7 @@ class GenerateResponse(BaseModel):
     form_schema: Optional[FormSchema] = Field(default=None, description="生成的表单 Schema")
     message: str = Field(default="", description="状态说明")
     retries: int = Field(default=0, description="自动循环重生成次数")
+    steps: list[RunStep] = Field(default_factory=list, description="节点执行轨迹，按实际执行顺序排列")
 
 
 class ApprovalRequest(BaseModel):

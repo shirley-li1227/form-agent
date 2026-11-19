@@ -5,22 +5,44 @@
 - check：规则校验；不合格且未超上限则循环回到 generate。
 - approval：是否进入人工审批状态。
 
+每个节点向 state["steps"] 追加一条轨迹（累加型 reducer），接口原样返回，
+前端据此还原本轮实际走过的链路，包括校验失败后又重生成了几轮。
+
 运行态保存在内存 store（可替换为 Redis / DB / LangGraph checkpointer）。
 """
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import Optional
 
 from app.agents.form_agent import FormAgent
 from app.config import Settings, get_settings
 from app.graph.state import GraphState
-from app.models import FormSchema, GenerateResponse
+from app.models import FormSchema, GenerateResponse, RunStep
 from app.rag.retriever import Retriever
 
 # 内存运行态：run_id -> state
 _RUN_STORE: dict[str, GraphState] = {}
+
+SOURCE_LABEL = {"llm": "LLM", "rule": "规则兜底"}
+
+
+def _step(
+    node: str,
+    summary: str,
+    ok: Optional[bool] = None,
+    round_: Optional[int] = None,
+) -> dict:
+    """构造一条节点轨迹。"""
+    return {
+        "node": node,
+        "at": time.strftime("%H:%M:%S"),
+        "summary": summary,
+        "ok": ok,
+        "round": round_,
+    }
 
 
 def _validate(schema: Optional[FormSchema], requirement: str) -> tuple[bool, str]:
@@ -54,23 +76,58 @@ class FormWorkflow:
     # ---------- 节点 ----------
 
     def _retrieve_node(self, state: GraphState) -> dict:
-        context = self.retriever.retrieve(state["requirement"])
-        return {"context": context}
+        hits = self.retriever.retrieve_hits(state["requirement"])
+        top = self.retriever.chunk_title(hits[0]) if hits else "无"
+        return {
+            "context": "\n".join(hits),
+            "steps": [
+                _step(
+                    "retrieve",
+                    f"{self.retriever.mode} 检索命中 {len(hits)} 条规范，最相关：{top}",
+                )
+            ],
+        }
 
     def _generate_node(self, state: GraphState) -> dict:
-        schema = self.form_agent.generate(state["requirement"], state.get("context", ""))
-        return {"schema": schema, "retries": state.get("retries", 0) + 1}
+        schema, source = self.form_agent.generate(
+            state["requirement"], state.get("context", "")
+        )
+        rounds = state.get("retries", 0) + 1
+        return {
+            "schema": schema,
+            "retries": rounds,
+            "steps": [
+                _step(
+                    "generate",
+                    f"第 {rounds} 轮生成（{SOURCE_LABEL[source]}）：{len(schema.fields)} 个字段",
+                    round_=rounds,
+                )
+            ],
+        }
 
     def _check_node(self, state: GraphState) -> dict:
         ok, msg = _validate(state.get("schema"), state["requirement"])
-        return {"pass_check": ok, "message": msg}
+        rounds = state.get("retries", 0)
+        return {
+            "pass_check": ok,
+            "message": msg,
+            "steps": [_step("check", msg, ok, round_=rounds)],
+        }
 
     def _approval_node(self, state: GraphState) -> dict:
         if not state.get("pass_check"):
-            return {"status": "rejected", "message": "超过最大重试次数仍未通过校验"}
-        if state.get("need_approval"):
-            return {"status": "pending_approval", "message": "等待人工审批"}
-        return {"status": "auto_passed", "message": "无需审批，自动通过"}
+            status, msg = "rejected", "超过最大重试次数仍未通过校验"
+        elif state.get("need_approval"):
+            status, msg = "pending_approval", "等待人工审批"
+        else:
+            status, msg = "auto_passed", "无需审批，自动通过"
+        # 待审批不算通过也不算失败，用 None 让前端保持中性色
+        ok = None if status == "pending_approval" else status != "rejected"
+        return {
+            "status": status,
+            "message": msg,
+            "steps": [_step("approval", msg, ok)],
+        }
 
     # ---------- 条件路由 ----------
 
@@ -111,6 +168,7 @@ class FormWorkflow:
             "run_id": run_id,
             "requirement": requirement,
             "retries": 0,
+            "steps": [],
             "need_approval": need_approval,
             "status": "pending",
             "message": "",
@@ -118,13 +176,7 @@ class FormWorkflow:
         final_state = self.graph.invoke(init_state)
         _RUN_STORE[run_id] = final_state
 
-        return GenerateResponse(
-            run_id=run_id,
-            status=final_state.get("status", "pending"),
-            form_schema=final_state.get("schema"),
-            message=final_state.get("message", ""),
-            retries=final_state.get("retries", 0),
-        )
+        return self._to_response(final_state)
 
     def get_run(self, run_id: str) -> Optional[GenerateResponse]:
         state = _RUN_STORE.get(run_id)
@@ -140,6 +192,9 @@ class FormWorkflow:
         state["comment"] = comment
         state["status"] = "approved" if approved else "rejected"
         state["message"] = comment or ("审批通过" if approved else "审批驳回")
+        state.setdefault("steps", []).append(
+            _step("approval", f"人工审批：{state['message']}", approved)
+        )
         return self._to_response(state)
 
     @staticmethod
@@ -149,5 +204,7 @@ class FormWorkflow:
             status=state.get("status", "pending"),
             form_schema=state.get("schema"),
             message=state.get("message", ""),
-            retries=state.get("retries", 0),
+            # 图内 retries 记的是 generate 执行次数，对外语义是「重生成次数」= 轮次 - 1
+            retries=max(state.get("retries", 0) - 1, 0),
+            steps=[RunStep(**step) for step in state.get("steps", [])],
         )

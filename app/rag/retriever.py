@@ -155,10 +155,19 @@ class Retriever:
 
     # ---------- 检索 ----------
 
-    def retrieve(self, query: str, k: int = 3) -> str:
-        scored = self._score(query)
-        top = sorted(scored, key=lambda x: x[1], reverse=True)[:k]
-        return "\n".join(chunk for chunk, _ in top)
+    def retrieve_hits(self, query: str, k: int = 3) -> list[str]:
+        """返回按得分排序的 top-k 原始 chunk，供上下文拼接与轨迹展示。"""
+        scored = sorted(self._score(query), key=lambda x: x[1], reverse=True)[:k]
+        return [chunk for chunk, _ in scored]
+
+    @staticmethod
+    def chunk_title(chunk: str) -> str:
+        """取 chunk 的首个非空行作为标题，去掉 markdown 井号前缀。"""
+        for line in chunk.splitlines():
+            title = line.lstrip("#").strip()
+            if title:
+                return title[:24]
+        return "未命名片段"
 
     def _score(self, query: str) -> list[tuple[str, float]]:
         if self._ensure_index():
